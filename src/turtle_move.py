@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import sys
 import rospy
 from math import atan2, radians, pow, sqrt
 from geometry_msgs.msg import Twist
@@ -146,25 +145,18 @@ def spiral_clean():
     twist.linear.x = 0
     speed_pub.publish(twist)
 
-def usage():
-    return '%s [x y]'%sys.argv[0]
-
 if __name__ == '__main__':
-    if len(sys.argv) == 3:
-        x = float(sys.argv[1])
-        y = float(sys.argv[2])
-    else:
-        print usage()
-        sys.exit(1)
     try:
         rospy.init_node('turtle_move', anonymous=True)    
         rospy.Subscriber('/turtle1/pose', Pose, poseCallback)
 
-        #move(2, 3, 1)
-        #rotate(radians(180), radians(90), 1)
-        #move_to_goal(Pose(x,y,0,0,0), 0.01)
-        #set_abs_rotation(0)
-        #grid_clean()
-        spiral_clean()
+        menu = input('1 - Spiral cleaning\n2 - Grid Cleaning\nEnter: ')
+        if menu == 1:
+            spiral_clean()
+        elif menu == 2:
+            grid_clean()
+        else:
+            print usage()
+            sys.exit(1)
     except rospy.ROSInterruptException:
         pass
