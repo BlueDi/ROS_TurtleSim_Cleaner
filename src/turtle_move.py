@@ -2,7 +2,7 @@
 
 import sys
 import rospy
-from math import radians
+from math import atan2, radians, pow, sqrt
 from geometry_msgs.msg import Twist
 from turtlesim.msg import Pose
 
@@ -11,6 +11,9 @@ turtle_pose = Pose(0,0,0,0,0)
 def poseCallback(pose_message):
     global turtle_pose
     turtle_pose = pose_message
+
+def getDistance(x1,y1,x2,y2):
+    return sqrt(pow((x1-x2),2) + pow((y1-y2),2))
 
 def move(speed, distance, isForward):
     speed_pub = rospy.Publisher('turtle1/cmd_vel', Twist, queue_size=10)
@@ -41,7 +44,7 @@ def move(speed, distance, isForward):
 def rotate(angular_speed, relative_angle, isClockwise):
     speed_pub = rospy.Publisher('turtle1/cmd_vel', Twist, queue_size=10)
     rospy.init_node('turtle_move', anonymous=True)
-    rate = rospy.Rate(10) # 10hz
+    rate = rospy.Rate(10)
     twist = Twist()
     twist.linear.x = 0
     twist.linear.y = 0
@@ -68,14 +71,88 @@ def set_abs_rotation(desired_angle):
     isClockwise = relative_angle < 0
     rotate(abs(relative_angle)/4, abs(relative_angle), isClockwise)
 
+def move_to_goal(goal, tolerance):
+    global turtle_pose
+    speed_pub = rospy.Publisher('turtle1/cmd_vel', Twist, queue_size=10)
+    rospy.init_node('turtle_move', anonymous=True)
+    rate = rospy.Rate(10)
+    twist = Twist()
+
+    while getDistance(turtle_pose.x, turtle_pose.y, goal.x, goal.y) > tolerance:
+        twist.linear.x = 1.5*getDistance(turtle_pose.x, turtle_pose.y, goal.x, goal.y)
+        twist.linear.y = 0
+        twist.linear.z = 0
+
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = 4*(atan2(goal.y-turtle_pose.y, goal.x-turtle_pose.x)-turtle_pose.theta)
+
+        speed_pub.publish(twist)
+        rate.sleep()
+    twist.linear.x = 0
+    twist.angular.z = 0
+    speed_pub.publish(twist)
+
+def grid_clean():
+    global turtle_pose
+    speed_pub = rospy.Publisher('turtle1/cmd_vel', Twist, queue_size=10)
+    rospy.init_node('turtle_move', anonymous=True)
+    rate = rospy.Rate(10)
+    twist = Twist()
+    goal = Pose(1,1,0,0,0)
+
+    move_to_goal(goal, 0.01)
+    set_abs_rotation(0)
+
+    move(2, 9, 1)
+    rotate(radians(10), radians(90), 0)
+
+    i = 0
+    while i < 5:
+        i = i + 1
+        move(3, 9, 1)
+        rotate(radians(30), radians(90), 0)
+        move(3, 1, 1)
+        rotate(radians(30), radians(90), 0)
+        move(3, 9, 1)
+        rotate(radians(30), radians(90), 1)
+        move(3, 1, 1)
+        rotate(radians(30), radians(90), 1)
+        move(3, 9, 1)
+
+def spiral_clean():
+    global turtle_pose
+    speed_pub = rospy.Publisher('turtle1/cmd_vel', Twist, queue_size=10)
+    rospy.init_node('turtle_move', anonymous=True)
+    rate = rospy.Rate(10)
+    twist = Twist()
+    count = 0
+    const_speed = 4
+    vk = 1
+    wk = 2
+    rk = 0.5
+
+    while turtle_pose.x < 10.5 and turtle_pose.y < 10.5:
+        rk = rk + 0.1
+        twist.linear.x = rk
+        twist.linear.y = 0
+        twist.linear.z = 0
+
+        twist.angular.x = 0
+        twist.angular.y = 0
+        twist.angular.z = const_speed #vk / (0.1 + rk)
+        speed_pub.publish(twist)
+        rate.sleep()
+    twist.linear.x = 0
+    speed_pub.publish(twist)
+
 def usage():
-    return '%s [speed distance isForward]'%sys.argv[0]
+    return '%s [x y]'%sys.argv[0]
 
 if __name__ == '__main__':
-    if len(sys.argv) == 4:
-        speed = float(sys.argv[1])
-        distance = float(sys.argv[2])
-        isForward = int(sys.argv[3])
+    if len(sys.argv) == 3:
+        x = float(sys.argv[1])
+        y = float(sys.argv[2])
     else:
         print usage()
         sys.exit(1)
@@ -83,8 +160,11 @@ if __name__ == '__main__':
         rospy.init_node('turtle_move', anonymous=True)    
         rospy.Subscriber('/turtle1/pose', Pose, poseCallback)
 
-        move(speed, distance, isForward)
-        rotate(radians(180), radians(90), 1)
-        set_abs_rotation(0)
+        #move(2, 3, 1)
+        #rotate(radians(180), radians(90), 1)
+        #move_to_goal(Pose(x,y,0,0,0), 0.01)
+        #set_abs_rotation(0)
+        #grid_clean()
+        spiral_clean()
     except rospy.ROSInterruptException:
         pass
