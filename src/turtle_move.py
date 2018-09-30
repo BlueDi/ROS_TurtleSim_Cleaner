@@ -4,10 +4,17 @@ import sys
 import rospy
 from math import radians
 from geometry_msgs.msg import Twist
+from turtlesim.msg import Pose
+
+turtle_pose = Pose(0,0,0,0,0)
+
+def poseCallback(pose_message):
+    global turtle_pose
+    turtle_pose = pose_message
 
 def move(speed, distance, isForward):
     speed_pub = rospy.Publisher('turtle1/cmd_vel', Twist, queue_size=10)
-    rospy.init_node('talker', anonymous=True)
+    rospy.init_node('turtle_move', anonymous=True)
     rate = rospy.Rate(10)
     twist = Twist()
 
@@ -33,7 +40,7 @@ def move(speed, distance, isForward):
 
 def rotate(angular_speed, relative_angle, isClockwise):
     speed_pub = rospy.Publisher('turtle1/cmd_vel', Twist, queue_size=10)
-    rospy.init_node('talker', anonymous=True)
+    rospy.init_node('turtle_move', anonymous=True)
     rate = rospy.Rate(10) # 10hz
     twist = Twist()
     twist.linear.x = 0
@@ -55,6 +62,12 @@ def rotate(angular_speed, relative_angle, isClockwise):
     twist.angular.z = 0
     speed_pub.publish(twist)
 
+def set_abs_rotation(desired_angle):
+    global turtle_pose
+    relative_angle = radians(desired_angle) - turtle_pose.theta
+    isClockwise = relative_angle < 0
+    rotate(abs(relative_angle)/4, abs(relative_angle), isClockwise)
+
 def usage():
     return '%s [speed distance isForward]'%sys.argv[0]
 
@@ -67,7 +80,11 @@ if __name__ == '__main__':
         print usage()
         sys.exit(1)
     try:
+        rospy.init_node('turtle_move', anonymous=True)    
+        rospy.Subscriber('/turtle1/pose', Pose, poseCallback)
+
         move(speed, distance, isForward)
-        rotate(radians(10), radians(90), 1)
+        rotate(radians(180), radians(90), 1)
+        set_abs_rotation(0)
     except rospy.ROSInterruptException:
         pass
